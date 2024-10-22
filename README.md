@@ -4,122 +4,141 @@
 
 ## Visão Geral
 
-GO Banking é um serviço backend que simula uma plataforma financeira, permitindo que usuários realizem transferências entre contas de qualquer banco no Brasil, utilizando Open Finance e Pix. O serviço fornece uma visão consolidada dos saldos dos usuários em diferentes bancos e possibilita transferências entre contas.
+GO Banking é um serviço backend que simula uma plataforma financeira, permitindo que usuários realizem transferências entre contas de qualquer banco no Brasil, utilizando Open Finance e Pix. O serviço fornece uma visão consolidada dos saldos dos usuários e possibilita transferências entre contas.
 
 ## Objetivos
 
 O principal objetivo deste projeto é explorar e aprender sobre desenvolvimento backend, design de sistemas e tecnologias modernas como microserviços, arquitetura orientada a eventos, Kubernetes, Docker e serviços da AWS.
 
-## Arquitetura Detalhada
+## Arquitetura Atualizada
 
-A arquitetura é baseada em microserviços, hospedada na AWS, containerizada com Docker e orquestrada com Kubernetes (AWS EKS). Cada componente é implementado como um serviço independente em um contêiner Docker, implantado em pods dentro do cluster Kubernetes.
+A arquitetura é baseada em microserviços, hospedada na AWS, containerizada com Docker e orquestrada com Kubernetes (AWS EKS). Com a adoção do **AWS Cognito**, o serviço de autenticação customizado foi substituído por um serviço gerenciado, simplificando a arquitetura e aumentando a segurança.
 
 ### Componentes e Serviços AWS
 
+#### AWS Cognito
+
+- **Descrição:** Serviço gerenciado para autenticação, autorização e gerenciamento de usuários.
+- **Uso no Projeto:** Gerencia o registro, login e autenticação dos usuários. Emite tokens JWT usados para autenticação nas APIs.
+
 #### AWS Elastic Kubernetes Service (EKS)
 
-- **Descrição**: Serviço gerenciado de Kubernetes que facilita a execução de clusters Kubernetes na AWS.
-- **Uso no Projeto**: Hospeda o cluster Kubernetes onde os contêineres Docker dos microserviços são implantados.
+- **Descrição:** Serviço gerenciado de Kubernetes.
+- **Uso no Projeto:** Hospeda os microserviços containerizados.
 
 #### Docker Containers
 
-- Cada microserviço é empacotado em um contêiner Docker para garantir consistência e portabilidade.
-- **Contêineres**:
-  - **API Gateway Container**: Gerencia as solicitações dos clientes e roteia para os serviços apropriados.
-  - **Auth Service Container**: Responsável pela autenticação e autorização dos usuários.
-  - **Account Service Container**: Gerencia informações das contas e saldos dos usuários.
-  - **Transaction Service Container**: Lida com a criação e processamento das transações.
-  - **Event Consumer Containers**: Consumidores que processam eventos do Kafka.
+- **Contêineres:**
+  - **API Gateway Container:** Gerencia solicitações e integra-se com o Cognito para autenticação.
+  - **Account Service Container:** Gerencia informações de contas e saldos.
+  - **Transaction Service Container:** Lida com transações e interage com o Kafka.
+  - **Event Consumer Containers:** Processam eventos do Kafka.
 
 #### AWS Managed Streaming for Apache Kafka (Amazon MSK)
 
-- **Descrição**: Serviço gerenciado para executar clusters Apache Kafka na AWS.
-- **Uso no Projeto**: Serve como o barramento de eventos para comunicação orientada a eventos entre os serviços.
+- **Descrição:** Serviço gerenciado para clusters Kafka.
+- **Uso no Projeto:** Barramento de eventos para comunicação entre serviços.
 
 #### Amazon DynamoDB
 
-- **Descrição**: Banco de dados NoSQL rápido e flexível.
-- **Uso no Projeto**: Armazena dados de contas, transações e eventos.
+- **Descrição:** Banco de dados NoSQL.
+- **Uso no Projeto:** Armazena dados de contas, transações e eventos.
 
-#### AWS CloudWatch
+#### Outros Serviços AWS
 
-- **Descrição**: Serviço de monitoramento para recursos AWS e aplicações.
-- **Uso no Projeto**: Monitoramento e logging dos recursos AWS e aplicações em execução.
-
-#### AWS IAM
-
-- **Descrição**: Gerenciamento de acesso seguro aos serviços e recursos da AWS.
-- **Uso no Projeto**: Controle de acesso e políticas de segurança para recursos AWS.
-
-#### AWS Elastic Load Balancing (ELB)
-
-- **Descrição**: Distribui automaticamente o tráfego de entrada entre múltiplas instâncias.
-- **Uso no Projeto**: Distribui o tráfego para os nós do EKS e balanceia a carga entre os pods.
-
-#### Amazon Route 53
-
-- **Descrição**: Serviço de DNS escalável e altamente disponível.
-- **Uso no Projeto**: Gerencia o roteamento de tráfego para o ELB e serviços.
-
-#### AWS Key Management Service (KMS)
-
-- **Descrição**: Serviço gerenciado para criação e controle de chaves de criptografia.
-- **Uso no Projeto**: Gerencia as chaves de criptografia para dados em repouso.
+- **AWS CloudWatch:** Monitoramento e logging.
+- **AWS IAM:** Controle de acesso e políticas de segurança.
+- **AWS Elastic Load Balancing (ELB):** Distribuição de tráfego.
+- **Amazon Route 53:** Gerenciamento de DNS.
+- **AWS KMS:** Gerenciamento de chaves de criptografia.
 
 ### Arquitetura Lógica
 
-A seguir, detalhamos como os componentes interagem dentro da arquitetura do sistema.
-
 #### Fluxo de Dados
 
-1. **Cliente (Usuário)**: Inicia solicitações através de aplicativos cliente (web/mobile).
+1. **Registro/Login do Usuário:**
+   - Usuário interage diretamente com o AWS Cognito para registro e login.
+   - Cognito emite tokens JWT (ID token, Access token, Refresh token).
 
-2. **Amazon Route 53**: Resolve o domínio para o ELB.
+2. **Solicitações à API:**
+   - Usuário faz chamadas à API incluindo o token de acesso.
+   - **Amazon Route 53** resolve o domínio para o ELB.
+   - **ELB** distribui o tráfego para o API Gateway no EKS.
 
-3. **Elastic Load Balancer (ELB)**: Distribui o tráfego para os nós do cluster EKS.
+3. **API Gateway:**
+   - Configurado com o Cognito Authorizer para validar tokens JWT.
+   - Roteia solicitações autenticadas para os microserviços.
 
-4. **AWS EKS Cluster**:
+4. **Microserviços:**
+   - **Account Service** e **Transaction Service** processam as solicitações.
+   - Utilizam informações do token JWT para autorização e identificação do usuário.
+   - Interagem com o **DynamoDB** e **Kafka** conforme necessário.
 
-   - **API Gateway**:
-     - Recebe as solicitações dos usuários.
-     - Roteia as solicitações para os microserviços apropriados.
-   - **Auth Service**:
-     - Autentica e autoriza usuários.
-   - **Account Service**:
-     - Gerencia informações de contas e saldos.
-   - **Transaction Service**:
-     - Processa transações e interage com o Kafka para publicar eventos.
+5. **DICT Key Service**:
+   - Consulta a **API do Banco Central** para obter detalhes da chave.
 
-5. **Amazon MSK (Kafka)**:
+6. **Processamento de Eventos:**
+   - **Transaction Service** publica eventos no **Amazon MSK (Kafka)**.
+   - **Account Service** consome eventos para atualizar saldos.
 
-   - **Produtores**: Microserviços que publicam eventos (e.g., Transaction Service).
-   - **Consumidores**: Microserviços que consomem eventos (e.g., Account Service para atualizar saldos).
+7. **Persistência e Estado:**
+   - **DynamoDB** armazena dados de contas, transações e eventos.
 
-6. **Amazon DynamoDB**:
+8. **Monitoramento e Logging:**
+   - **AWS CloudWatch** coleta logs e métricas.
 
-   - Armazena dados persistentes como contas, transações e eventos.
+### Diagrama de Arquitetura
 
-7. **AWS CloudWatch**:
+![alt text](go-banking-design.png)
 
-   - Coleta logs e métricas dos serviços.
-   - Configurado para alertas e dashboards.
+### Considerações de Infraestrutura
 
-### Estratégia de Sharding no Kubernetes
+- **NAT Gateway**:
+  - Necessário para que o DICT Key Service acesse a internet a partir de sub-redes privadas.
+- **Grupos de Segurança**:
+  - Restringir tráfego de saída do DICT Key Service.
+- **Configurações de Rede**:
+  - Assegurar que apenas os serviços autorizados possam comunicar-se com o DICT Key Service.
 
-- **Namespaces**:
+### Tecnologias Utilizadas
 
-  - Separação lógica dos ambientes (e.g., dev, staging, prod).
-  - Permite gerenciamento isolado de recursos e políticas.
+- **Linguagem de Programação**: Go
+- **Banco de Dados**: Amazon DynamoDB
+- **Message Broker**: Apache Kafka (Amazon MSK)
+- **Autenticação**: AWS Cognito
+- **Containerização**: Docker
+- **Orquestração**: Kubernetes (AWS EKS)
+- **Integração Externa**: API do Banco Central via DICT Key Service
+- **Monitoramento**: AWS CloudWatch
+- **Infraestrutura como Código**: AWS CloudFormation ou Terraform
 
-- **Node Groups**:
+## Decisões de Design do Sistema
 
-  - Grupos de nós com configurações específicas (e.g., tamanho de instância, capacidade).
-  - Podem ser usados para separar cargas de trabalho (e.g., serviços críticos vs. serviços auxiliares).
+### Adição do DICT Key Service
 
-- **Horizontal Pod Autoscaling (HPA)**:
+- **Motivação**: Necessidade de validar chaves Pix usando a API do Banco Central.
+- **Benefícios**:
+  - **Modularidade**: Serviço separado facilita manutenção e escalabilidade.
+  - **Reutilização**: Pode ser usado por outros serviços no futuro.
+- **Implementação**:
+  - Acesso seguro à internet via NAT Gateway.
+  - Armazenamento seguro de credenciais e configuração.
 
-  - Ajusta automaticamente o número de pods com base em métricas (e.g., uso de CPU, custom metrics).
-  - Garante que o serviço possa escalar horizontalmente conforme a demanda.
+*(Demais decisões conforme anteriormente descritas.)*
 
-### Diagrama Detalhado da Arquitetura
-![design](go-banking-design.png)
+## Como Executar o Projeto
+
+*(A ser desenvolvido conforme o avanço do projeto.)*
+
+## Notas
+
+- **Disclaimer**: GO Banking é um projeto experimental para fins de estudo e teste.
+- **Contribuições**: Sugestões e discussões sobre design e arquitetura são bem-vindas.
+
+---
+
+**Considerações Finais**
+
+A integração com a API do Banco Central é essencial para validar chaves Pix e garantir a segurança e confiabilidade das transações. A adição do DICT Key Service como um microserviço dedicado permite uma arquitetura mais modular e facilita a manutenção.
+
+---
