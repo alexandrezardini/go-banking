@@ -112,20 +112,6 @@ A arquitetura é baseada em microserviços, hospedada na AWS, containerizada com
 - **Monitoramento**: AWS CloudWatch
 - **Infraestrutura como Código**: AWS CloudFormation ou Terraform
 
-## Decisões de Design do Sistema
-
-### Adição do DICT Key Service
-
-- **Motivação**: Necessidade de validar chaves Pix usando a API do Banco Central.
-- **Benefícios**:
-  - **Modularidade**: Serviço separado facilita manutenção e escalabilidade.
-  - **Reutilização**: Pode ser usado por outros serviços no futuro.
-- **Implementação**:
-  - Acesso seguro à internet via NAT Gateway.
-  - Armazenamento seguro de credenciais e configuração.
-
-*(Demais decisões conforme anteriormente descritas.)*
-
 ## Como Executar o Projeto
 
 *(A ser desenvolvido conforme o avanço do projeto.)*
